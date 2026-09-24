@@ -166,7 +166,21 @@
   .about p { margin: 0; max-width: 62ch; }
   .about em { font-family: var(--serif); font-size: 1.05em; }
   .err { padding: 24px; color: var(--ink-2); }
+
+  /* ?embed: compact layout for an iframe inside a blog post */
+  html.embed body { padding-block: 0; padding-inline: 0; background: transparent; }
+  html.embed .wrap > header, html.embed .lede, html.embed .about { display: none; }
+  html.embed .main { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  html.embed .stage { height: clamp(340px, 62vw, 520px); }
+  html.embed aside { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 </style>
+<script>
+  // Embedded pages follow the host blog, which is light-only
+  if (/[?&]embed\b/.test(location.search)) {
+    document.documentElement.classList.add("embed");
+    document.documentElement.setAttribute("data-theme", "light");
+  }
+</script>
 
 <div class="wrap">
   <header>
@@ -752,6 +766,17 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // Tell an embedding page how tall we are so its iframe can fit exactly
+  if (document.documentElement.classList.contains("embed") && window.parent !== window) {
+    let last = 0;
+    const report = () => {
+      const h = Math.ceil(document.querySelector(".wrap").getBoundingClientRect().height) + 4;
+      if (h !== last) { last = h; window.parent.postMessage({ type: "ternary-entropy-height", height: h }, "*"); }
+    };
+    new ResizeObserver(report).observe(document.querySelector(".wrap"));
+    report();
+  }
 
   // three.js only logs shader errors; surface them on the page too
   renderer.compile(scene, camera);
