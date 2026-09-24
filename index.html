@@ -1,0 +1,762 @@
+<title>Ternary Entropy Surface</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,500;1,400;1,500&display=swap">
+<style>
+  :root {
+    --bg: #f2f4f6;
+    --panel: #ffffff;
+    --ink: #13202b;
+    --ink-2: #44525e;
+    --muted: #6d7a86;
+    --rule: #d9dee3;
+    --accent: #b86a12;       /* binary-entropy edges */
+    --accent-soft: #f5e3c8;
+    --focus: #2574a9;
+    --line3d: #8a96a1;
+    --serif: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e141a;
+      --panel: #151d25;
+      --ink: #e3e9ee;
+      --ink-2: #b3bec8;
+      --muted: #85919c;
+      --rule: #26313b;
+      --accent: #f0ad4e;
+      --accent-soft: #3a2a14;
+      --focus: #5cb3e0;
+      --line3d: #5b6873;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e141a;
+    --panel: #151d25;
+    --ink: #e3e9ee;
+    --ink-2: #b3bec8;
+    --muted: #85919c;
+    --rule: #26313b;
+    --accent: #f0ad4e;
+    --accent-soft: #3a2a14;
+    --focus: #5cb3e0;
+    --line3d: #5b6873;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-inline: 16px;
+    padding-block: 20px 40px;
+  }
+  .wrap { max-width: 1240px; margin-inline: auto; display: grid; gap: 18px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 32px; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.1;
+    margin: 0;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .formula {
+    font-family: var(--serif);
+    font-size: clamp(18px, 2vw, 22px);
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .formula i { font-style: italic; }
+  .lede { margin: 0; color: var(--ink-2); max-width: 68ch; }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage {
+    position: relative;
+    height: clamp(380px, min(72vh, 125vw), 760px);
+    border-radius: 6px;
+    background:
+      radial-gradient(120% 90% at 50% 30%, color-mix(in srgb, var(--panel) 70%, transparent), transparent 70%),
+      var(--bg);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+    touch-action: none;
+  }
+  .stage canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  .labels { position: absolute; inset: 0; pointer-events: none; }
+  .lbl {
+    position: absolute; left: 0; top: 0;
+    transform: translate(-50%, -50%);
+    font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+    white-space: nowrap;
+    text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 6px var(--bg);
+  }
+  .lbl.vertex { font-family: var(--serif); font-size: 16px; color: var(--ink); }
+  .lbl.vertex small { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 4px; }
+  .lbl.edge { color: var(--accent); font-family: var(--serif); font-style: italic; font-size: 15px; }
+  .lbl.tick { font-size: 11px; color: var(--muted); transform: translate(8px, -50%); }
+  .lbl.peak { color: var(--ink); font-size: 12px; transform: translate(-50%, -150%); }
+  .hint {
+    position: absolute; left: 12px; bottom: 10px;
+    font-size: 12px; color: var(--muted); pointer-events: none;
+  }
+  .views { position: absolute; right: 10px; top: 10px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+  button, .seg label {
+    font: 500 12px/1 var(--sans);
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 7px 10px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  aside { display: grid; gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: grid; gap: 10px; }
+  .card h2 {
+    margin: 0; font: 600 11px/1.2 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .card h2 span { letter-spacing: 0; text-transform: none; font-weight: 500; font-family: var(--mono); }
+
+  .probs { display: grid; gap: 6px; }
+  .prob { display: grid; grid-template-columns: 26px 1fr 52px; align-items: center; gap: 8px; }
+  .prob .name { font-family: var(--serif); font-style: italic; font-size: 16px; }
+  .prob .bar { height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+  .prob .bar i { display: block; height: 100%; background: var(--ink-2); border-radius: 3px; width: 33%; }
+  .prob .val { font-family: var(--mono); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .hval { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--rule); padding-top: 10px; }
+  .hval .big { font-family: var(--mono); font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .hval .unit { color: var(--muted); font-size: 13px; }
+  .sub { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; gap: 14px; flex-wrap: wrap; }
+
+  .ramp { height: 12px; border-radius: 2px; }
+  .ramp-axis { position: relative; height: 16px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .ramp-axis span { position: absolute; top: 0; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+  .ramp-axis span:first-child { transform: none; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+  .legend-row i.m { font-family: var(--serif); }
+  .swatch-line { width: 22px; height: 3px; border-radius: 2px; background: var(--accent); flex: none; }
+  .swatch-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink); flex: none; margin-inline: 6px 7px; }
+
+  .ctl { display: grid; gap: 4px; }
+  .ctl-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+  .ctl-head output { font-family: var(--mono); font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--focus); margin: 0; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+  .checks label { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+  .checks input { accent-color: var(--focus); margin: 0; }
+
+  .about { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 32px; color: var(--ink-2); font-size: 14px; }
+  .about h3 { margin: 0 0 4px; font: 600 11px/1.2 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .about p { margin: 0; max-width: 62ch; }
+  .about em { font-family: var(--serif); font-size: 1.05em; }
+  .err { padding: 24px; color: var(--ink-2); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ternary Entropy Surface</h1>
+    <div class="formula"><i>H</i>(<i>p</i><sub>1</sub>, <i>p</i><sub>2</sub>, <i>p</i><sub>3</sub>) = −∑ <i>p<sub>i</sub></i> log<sub>2</sub> <i>p<sub>i</sub></i></div>
+  </header>
+  <p class="lede">Shannon entropy of every three-outcome distribution, drawn over the probability simplex <i>p</i><sub>1</sub> + <i>p</i><sub>2</sub> + <i>p</i><sub>3</sub> = 1. Drag to orbit, scroll or pinch to zoom, and hover or tap the surface to read off a distribution.</p>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="gl" aria-label="Interactive 3D surface of ternary Shannon entropy over the probability simplex"></canvas>
+      <div class="labels" id="labels"></div>
+      <div class="views" role="group" aria-label="Camera views">
+        <button type="button" data-view="oblique">Oblique</button>
+        <button type="button" data-view="top">Top (ternary)</button>
+        <button type="button" data-view="side">Side</button>
+      </div>
+      <div class="hint" id="hint">Drag to orbit · hover for values</div>
+    </div>
+
+    <aside>
+      <section class="card" aria-live="polite">
+        <h2>Distribution <span id="readTag">maximum</span></h2>
+        <div class="probs">
+          <div class="prob"><span class="name">p<sub>1</sub></span><span class="bar"><i id="b1"></i></span><span class="val" id="v1">0.333</span></div>
+          <div class="prob"><span class="name">p<sub>2</sub></span><span class="bar"><i id="b2"></i></span><span class="val" id="v2">0.333</span></div>
+          <div class="prob"><span class="name">p<sub>3</sub></span><span class="bar"><i id="b3"></i></span><span class="val" id="v3">0.333</span></div>
+        </div>
+        <div class="hval"><span class="big" id="hBits">1.5850</span><span class="unit">bits</span></div>
+        <div class="sub"><span id="hNats">1.0986 nats</span><span id="hPct">100% of max</span></div>
+      </section>
+
+      <section class="card">
+        <h2>Legend</h2>
+        <div class="ramp" id="ramp"></div>
+        <div class="ramp-axis" id="rampAxis"></div>
+        <div class="legend-row"><span class="swatch-line"></span><span>Edges: binary entropy <i class="m">h</i>(<i class="m">p</i>)</span></div>
+        <div class="legend-row"><span class="swatch-dot"></span><span>Peak at (⅓, ⅓, ⅓), log<sub>2</sub>3 bits</span></div>
+      </section>
+
+      <section class="card">
+        <h2>Display</h2>
+        <div class="ctl">
+          <div class="ctl-head"><label for="scale">Height scale</label><output id="scaleOut" for="scale">1.00×</output></div>
+          <input type="range" id="scale" min="0.3" max="1.6" step="0.05" value="1">
+        </div>
+        <div class="ctl">
+          <div class="ctl-head"><label for="step">Contour spacing</label><output id="stepOut" for="step">0.10 bit</output></div>
+          <input type="range" id="step" min="0" max="4" step="1" value="2">
+        </div>
+        <div class="checks">
+          <label><input type="checkbox" id="optContours" checked> Contours</label>
+          <label><input type="checkbox" id="optGrid" checked> Prob. grid</label>
+          <label><input type="checkbox" id="optFloor" checked> Floor map</label>
+          <label><input type="checkbox" id="optEdges" checked> Edge curves</label>
+          <label><input type="checkbox" id="optSpin"> Auto-rotate</label>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div>
+      <h3>Geometry</h3>
+      <p>The simplex is an equilateral triangle with the pure distributions at its corners. Height is <em>H</em> in bits. Each edge is a two-outcome distribution, so the surface meets the walls along the binary entropy curve and rises to log<sub>2</sub>3 ≈ 1.585 bits at the uniform distribution.</p>
+    </div>
+    <div>
+      <h3>How it is drawn</h3>
+      <p>The mesh is a triangular grid in barycentric coordinates, so the boundary is exact rather than clipped from a square grid. Colour, contours and shading are computed per pixel from the exact formula, including the gradient, which becomes vertical at the edges.</p>
+    </div>
+    <div>
+      <h3>Reading it</h3>
+      <p>Contours are lines of equal entropy, with every fifth one heavier. The floor repeats them as a flat ternary diagram. Faint lines mark <em>p<sub>i</sub></em> in steps of 0.1.</p>
+    </div>
+  </section>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+(function () {
+  "use strict";
+  const stage = document.getElementById("stage");
+  function fail(msg) {
+    stage.innerHTML = '<p class="err"></p>';
+    stage.firstChild.textContent = msg;
+  }
+  if (!window.THREE || !THREE.OrbitControls) {
+    fail("The 3D library (vendor/three.min.js) did not load. Reload the page; if it persists, check that the vendor folder was deployed.");
+    return;
+  }
+  const probe = document.createElement("canvas");
+  if (!(probe.getContext("webgl2") || probe.getContext("webgl"))) {
+    fail("This browser has WebGL turned off or unavailable, so the 3D surface cannot be drawn. Enable hardware acceleration in the browser settings, or try another browser.");
+    return;
+  }
+  try { main(); } catch (e) {
+    console.error(e);
+    fail("The 3D view failed to start: " + (e && e.message ? e.message : e));
+  }
+
+  function main() {
+
+  const LOG2_3 = Math.log2(3);
+  const LN2 = Math.LN2;
+  const STEPS = [0.025, 0.05, 0.1, 0.2, 0.25];
+  const N = 220;              // grid subdivisions per edge
+  const FLOOR_Y = -0.42;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // --- Simplex in the XZ plane (side length 2, centred on the origin) ---
+  const R = 2 / Math.sqrt(3);
+  const V = [0, 1, 2].map(k => {
+    const a = (k * 2 * Math.PI) / 3 + Math.PI; // p1 at the front
+    return [R * Math.sin(a), R * -Math.cos(a)];
+  });
+  // Barycentric gradients: p = Minv (x - V3) for (p1, p2)
+  const a11 = V[0][0] - V[2][0], a12 = V[1][0] - V[2][0];
+  const a21 = V[0][1] - V[2][1], a22 = V[1][1] - V[2][1];
+  const det = a11 * a22 - a12 * a21;
+  const G1 = [a22 / det, -a12 / det];
+  const G2 = [-a21 / det, a11 / det];
+  const G3 = [-(G1[0] + G2[0]), -(G1[1] + G2[1])];
+
+  function baryOf(x, z) {
+    const dx = x - V[2][0], dz = z - V[2][1];
+    const p1 = G1[0] * dx + G1[1] * dz;
+    const p2 = G2[0] * dx + G2[1] * dz;
+    return [p1, p2, 1 - p1 - p2];
+  }
+  function toXZ(p) {
+    return [p[0] * V[0][0] + p[1] * V[1][0] + p[2] * V[2][0],
+            p[0] * V[0][1] + p[1] * V[1][1] + p[2] * V[2][1]];
+  }
+  function H(p) {
+    let h = 0;
+    for (const q of p) if (q > 0) h -= q * Math.log2(q);
+    return h;
+  }
+
+  // --- Colour ramp: sequential, dark (certain) to light (uncertain) ---
+  const STOPS = ["#1b2659", "#22468c", "#2170a8", "#2a9bb6", "#52bdb2", "#99d8b0", "#dcefb3", "#fbf7cf"];
+  const rampCss = "linear-gradient(90deg," + STOPS.join(",") + ")";
+  document.getElementById("ramp").style.background = rampCss;
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const cmapData = new Uint8Array(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    const t = (i / 255) * (STOPS.length - 1);
+    const k = Math.min(Math.floor(t), STOPS.length - 2), f = t - k;
+    const c0 = hex(STOPS[k]), c1 = hex(STOPS[k + 1]);
+    for (let j = 0; j < 3; j++) cmapData[i * 4 + j] = Math.round(c0[j] + (c1[j] - c0[j]) * f);
+    cmapData[i * 4 + 3] = 255;
+  }
+  const cmap = new THREE.DataTexture(cmapData, 256, 1, THREE.RGBAFormat);
+  cmap.magFilter = cmap.minFilter = THREE.LinearFilter;
+  cmap.needsUpdate = true;
+
+  const axis = document.getElementById("rampAxis");
+  [0, 0.5, 1, 1.5].forEach(v => {
+    const s = document.createElement("span");
+    s.style.left = (v / LOG2_3 * 100) + "%";
+    s.textContent = v.toFixed(1);
+    axis.appendChild(s);
+  });
+
+  // --- Renderer / scene ---
+  const canvas = document.getElementById("gl");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 100);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 2.2;
+  controls.maxDistance = 12;
+  controls.autoRotateSpeed = 0.8;
+
+  const uniforms = {
+    cmap: { value: cmap },
+    hMax: { value: LOG2_3 },
+    scale: { value: 1 },
+    contourStep: { value: 0.1 },
+    showContours: { value: 1 },
+    showGrid: { value: 1 },
+    flatMode: { value: 0 },
+    G1: { value: new THREE.Vector2(G1[0], G1[1]) },
+    G2: { value: new THREE.Vector2(G2[0], G2[1]) },
+    G3: { value: new THREE.Vector2(G3[0], G3[1]) },
+    lightDir: { value: new THREE.Vector3(0.45, 0.85, 0.35).normalize() },
+    alpha: { value: 1 },
+  };
+
+  const vert = `
+    attribute vec3 bary;
+    varying vec3 vP;
+    varying vec3 vWorld;
+    void main() {
+      vP = bary;
+      vec4 w = modelMatrix * vec4(position, 1.0);
+      vWorld = w.xyz;
+      gl_Position = projectionMatrix * viewMatrix * w;
+    }`;
+  const frag = `
+    uniform sampler2D cmap;
+    uniform float hMax, scale, contourStep, showContours, showGrid, flatMode, alpha;
+    uniform vec2 G1, G2, G3;
+    uniform vec3 lightDir;
+    varying vec3 vP;
+    varying vec3 vWorld;
+    const float INV_LN2 = 1.4426950408889634;
+
+    float lineMask(float f, float width) {
+      float d = abs(fract(f - 0.5) - 0.5) / max(fwidth(f), 1e-5);
+      return 1.0 - smoothstep(width - 0.5, width + 0.5, d);
+    }
+
+    void main() {
+      vec3 p = max(vP, vec3(1e-7));
+      p /= (p.x + p.y + p.z);
+      float h = -dot(p, log(p)) * INV_LN2;
+      vec3 base = texture2D(cmap, vec2(clamp(h / hMax, 0.0, 1.0), 0.5)).rgb;
+
+      vec3 col;
+      float lum = dot(base, vec3(0.299, 0.587, 0.114));
+      if (flatMode > 0.5) {
+        col = base;
+      } else {
+        vec3 dH = -(log(p) + 1.0) * INV_LN2;
+        vec2 g = dH.x * G1 + dH.y * G2 + dH.z * G3;
+        vec3 n = normalize(vec3(-scale * g.x, 1.0, -scale * g.y));
+        vec3 v = normalize(cameraPosition - vWorld);
+        if (dot(n, v) < 0.0) n = -n;
+        float diff = max(dot(n, lightDir), 0.0);
+        float fill = max(dot(n, normalize(vec3(-0.6, 0.3, -0.5))), 0.0);
+        float spec = pow(max(dot(n, normalize(lightDir + v)), 0.0), 48.0);
+        col = base * (0.42 + 0.58 * diff + 0.16 * fill) + vec3(0.14) * spec;
+      }
+
+      vec3 ink = lum > 0.5 ? base * 0.32 : mix(base, vec3(1.0), 0.7);
+      if (showContours > 0.5) {
+        float f = h / contourStep;
+        float minor = lineMask(f, 0.55);
+        float major = lineMask(f / 5.0, 1.1);
+        col = mix(col, ink, max(minor * 0.55, major * 0.9));
+      }
+      if (showGrid > 0.5) {
+        vec3 gp = p * 10.0;
+        float gridLine = max(max(lineMask(gp.x, 0.4), lineMask(gp.y, 0.4)), lineMask(gp.z, 0.4));
+        col = mix(col, ink, gridLine * 0.22);
+      }
+      gl_FragColor = vec4(col, alpha);
+    }`;
+
+  // --- Surface geometry: triangular grid in barycentric coordinates ---
+  const idx = (i, j) => (i * (2 * N + 3 - i)) / 2 + j; // row i has N+1-i vertices
+  const nVerts = ((N + 1) * (N + 2)) / 2;
+  const pos = new Float32Array(nVerts * 3);
+  const bary = new Float32Array(nVerts * 3);
+  const hv = new Float32Array(nVerts);
+  for (let i = 0; i <= N; i++) {
+    for (let j = 0; j <= N - i; j++) {
+      const k = idx(i, j);
+      const p = [i / N, j / N, (N - i - j) / N];
+      const xz = toXZ(p);
+      bary.set(p, k * 3);
+      hv[k] = H(p);
+      pos[k * 3] = xz[0];
+      pos[k * 3 + 2] = xz[1];
+    }
+  }
+  const tris = [];
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N - i; j++) {
+      tris.push(idx(i, j), idx(i + 1, j), idx(i, j + 1));
+      if (j < N - i - 1) tris.push(idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1));
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("bary", new THREE.BufferAttribute(bary, 3));
+  geo.setIndex(tris);
+  const surfMat = new THREE.ShaderMaterial({
+    uniforms, vertexShader: vert, fragmentShader: frag,
+    side: THREE.DoubleSide, extensions: { derivatives: true },
+  });
+  const surface = new THREE.Mesh(geo, surfMat);
+  scene.add(surface);
+
+  // --- Floor: flat ternary map ---
+  const floorGeo = new THREE.BufferGeometry();
+  const fp = new Float32Array(9), fb = new Float32Array(9);
+  for (let k = 0; k < 3; k++) {
+    fp.set([V[k][0], FLOOR_Y, V[k][1]], k * 3);
+    fb[k * 3 + k] = 1;
+  }
+  floorGeo.setAttribute("position", new THREE.BufferAttribute(fp, 3));
+  floorGeo.setAttribute("bary", new THREE.BufferAttribute(fb, 3));
+  const floorUniforms = Object.assign({}, uniforms, { flatMode: { value: 1 }, alpha: { value: 0.9 } });
+  const floorMat = new THREE.ShaderMaterial({
+    uniforms: floorUniforms, vertexShader: vert, fragmentShader: frag,
+    side: THREE.DoubleSide, transparent: true, depthWrite: false, extensions: { derivatives: true },
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  scene.add(floor);
+
+  // --- Theme-dependent line colours ---
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x888888 });
+  const dashMat = new THREE.LineDashedMaterial({ color: 0x888888, dashSize: 0.04, gapSize: 0.03 });
+  const edgeMat = new THREE.MeshBasicMaterial({ color: 0xb86a12 });
+  const peakMat = new THREE.MeshBasicMaterial({ color: 0x13202b });
+  const hoverMat = new THREE.MeshBasicMaterial({ color: 0x13202b });
+  function applyTheme() {
+    lineMat.color.set(css("--line3d"));
+    dashMat.color.set(css("--ink-2"));
+    edgeMat.color.set(css("--accent"));
+    peakMat.color.set(css("--ink"));
+    hoverMat.color.set(css("--ink"));
+  }
+  applyTheme();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // Floor outline and corner posts
+  const outline = new THREE.BufferGeometry().setFromPoints(
+    [0, 1, 2, 0].map(k => new THREE.Vector3(V[k][0], FLOOR_Y, V[k][1])));
+  scene.add(new THREE.Line(outline, lineMat));
+
+  // Scaled pieces are rebuilt when the height scale changes
+  const scaled = new THREE.Group();
+  scene.add(scaled);
+  const peakDot = new THREE.Mesh(new THREE.SphereGeometry(0.028, 20, 14), peakMat);
+  scene.add(peakDot);
+  const hoverDot = new THREE.Mesh(new THREE.SphereGeometry(0.022, 16, 12), hoverMat);
+  hoverDot.visible = false;
+  scene.add(hoverDot);
+  const hoverLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  const hoverLine = new THREE.Line(hoverLineGeo, dashMat);
+  hoverLine.visible = false;
+  scene.add(hoverLine);
+
+  const edgeGroup = new THREE.Group();
+  scaled.add(edgeGroup);
+
+  function edgePoint(k, t) {
+    // edge opposite vertex k: p_k = 0
+    const p = [0, 0, 0];
+    p[(k + 1) % 3] = t; p[(k + 2) % 3] = 1 - t;
+    return p;
+  }
+
+  function rebuildScaled(s) {
+    for (let k = 0; k < nVerts; k++) pos[k * 3 + 1] = s * hv[k];
+    geo.attributes.position.needsUpdate = true;
+    geo.computeBoundingSphere();
+    geo.computeBoundingBox();
+
+    while (scaled.children.length) {
+      const c = scaled.children.pop();
+      if (c.geometry) c.geometry.dispose();
+    }
+    const edges = new THREE.Group();
+    // Binary entropy along each edge, densified toward the corners where it is steep
+    for (let k = 0; k < 3; k++) {
+      const pts = [];
+      const M = 240;
+      for (let m = 0; m <= M; m++) {
+        const u = m / M;
+        const t = 0.5 - 0.5 * Math.cos(Math.PI * u);
+        const p = edgePoint(k, t), xz = toXZ(p);
+        pts.push(new THREE.Vector3(xz[0], s * H(p), xz[1]));
+      }
+      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 320, 0.009, 8, false);
+      edges.add(new THREE.Mesh(tube, edgeMat));
+    }
+    edges.visible = document.getElementById("optEdges").checked;
+    scaled.add(edges);
+    scaled.userData.edges = edges;
+
+    // Vertical axis at the p2 = 1 corner, pushed outward slightly
+    const c = V[1], out = 1.12;
+    const ax = new THREE.Vector3(c[0] * out, 0, c[1] * out);
+    const axGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(ax.x, FLOOR_Y, ax.z), new THREE.Vector3(ax.x, s * 1.6, ax.z)]);
+    scaled.add(new THREE.Line(axGeo, lineMat));
+    const tickPts = [];
+    [0, 0.5, 1, 1.5].forEach(v => {
+      tickPts.push(new THREE.Vector3(ax.x - 0.035, s * v, ax.z), new THREE.Vector3(ax.x + 0.035, s * v, ax.z));
+    });
+    scaled.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(tickPts), lineMat));
+    scaled.userData.axis = ax;
+
+    // Drop line from the peak
+    const dl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, FLOOR_Y, 0), new THREE.Vector3(0, s * LOG2_3, 0)]), dashMat);
+    dl.computeLineDistances();
+    scaled.add(dl);
+
+    peakDot.position.set(0, s * LOG2_3, 0);
+    layoutLabels(s);
+  }
+
+  // --- HTML labels projected into the scene ---
+  const labelsEl = document.getElementById("labels");
+  const labels = [];
+  function addLabel(cls, html) {
+    const el = document.createElement("div");
+    el.className = "lbl " + cls;
+    el.innerHTML = html;
+    labelsEl.appendChild(el);
+    const rec = { el, pos: new THREE.Vector3() };
+    labels.push(rec);
+    return rec;
+  }
+  const vLabels = [
+    addLabel("vertex", "<i>p</i><sub>1</sub> = 1<small>(1,0,0)</small>"),
+    addLabel("vertex", "<i>p</i><sub>2</sub> = 1<small>(0,1,0)</small>"),
+    addLabel("vertex", "<i>p</i><sub>3</sub> = 1<small>(0,0,1)</small>"),
+  ];
+  const edgeLabel = addLabel("edge", "h(p)");
+  const peakLabel = addLabel("peak", "log₂3 = 1.585");
+  const tickLabels = [0, 0.5, 1, 1.5].map(v => addLabel("tick", v === 0 ? "0 bits" : v.toFixed(1)));
+
+  function layoutLabels(s) {
+    V.forEach((c, k) => vLabels[k].pos.set(c[0] * 1.2, FLOOR_Y, c[1] * 1.2));
+    // edge opposite p1 (p1 = 0), at its midpoint, just above 1 bit
+    const m = toXZ([0, 0.5, 0.5]);
+    edgeLabel.pos.set(m[0] * 1.12, s * 1.0 + 0.1, m[1] * 1.12);
+    peakLabel.pos.set(0, s * LOG2_3, 0);
+    const ax = scaled.userData.axis;
+    [0, 0.5, 1, 1.5].forEach((v, i) => tickLabels[i].pos.set(ax.x, s * v, ax.z));
+  }
+
+  const tmp = new THREE.Vector3();
+  function projectLabels() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const edgesOn = document.getElementById("optEdges").checked;
+    for (const L of labels) {
+      tmp.copy(L.pos).project(camera);
+      const hidden = tmp.z > 1 || (L === edgeLabel && !edgesOn);
+      L.el.style.visibility = hidden ? "hidden" : "visible";
+      L.el.style.left = ((tmp.x * 0.5 + 0.5) * w).toFixed(1) + "px";
+      L.el.style.top = ((-tmp.y * 0.5 + 0.5) * h).toFixed(1) + "px";
+    }
+  }
+
+  // --- Camera views ---
+  const target = new THREE.Vector3(0, 0.35, 0);
+  const VIEWS = {
+    oblique: new THREE.Vector3(3.1, 2.5, 3.5),
+    top: new THREE.Vector3(0, 5.6, 0.001),
+    side: new THREE.Vector3(0.001, 0.55, 5.2),
+  };
+  let tween = null;
+  function goView(name, instant) {
+    const to = VIEWS[name].clone();
+    const fromT = controls.target.clone();
+    const toT = name === "top" ? new THREE.Vector3(0, 0, 0) : target.clone();
+    if (instant || reduceMotion) {
+      camera.position.copy(to); controls.target.copy(toT); controls.update(); return;
+    }
+    tween = { from: camera.position.clone(), to, fromT, toT, t0: performance.now(), dur: 700 };
+  }
+  document.querySelectorAll("[data-view]").forEach(b =>
+    b.addEventListener("click", () => goView(b.dataset.view)));
+  goView("oblique", true);
+
+  // --- Readout ---
+  const $ = id => document.getElementById(id);
+  function showReadout(p, tag) {
+    const h = H(p);
+    ["1", "2", "3"].forEach((n, i) => {
+      $("v" + n).textContent = p[i].toFixed(3);
+      $("b" + n).style.width = (p[i] * 100).toFixed(1) + "%";
+    });
+    $("hBits").textContent = h.toFixed(4);
+    $("hNats").textContent = (h * LN2).toFixed(4) + " nats";
+    $("hPct").textContent = Math.round((h / LOG2_3) * 100) + "% of max";
+    $("readTag").textContent = tag;
+  }
+  const PEAK = [1 / 3, 1 / 3, 1 / 3];
+  showReadout(PEAK, "maximum");
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  function pick(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    let hit = raycaster.intersectObject(surface, false)[0];
+    let p = null;
+    if (hit) {
+      p = baryOf(hit.point.x, hit.point.z);
+    } else if (floor.visible) {
+      const fh = raycaster.intersectObject(floor, false)[0];
+      if (fh) p = baryOf(fh.point.x, fh.point.z);
+    }
+    if (!p) return false;
+    p = p.map(q => Math.max(0, q));
+    const sum = p[0] + p[1] + p[2];
+    p = p.map(q => q / sum);
+    const xz = toXZ(p), s = uniforms.scale.value, y = s * H(p);
+    hoverDot.position.set(xz[0], y, xz[1]);
+    hoverDot.visible = true;
+    const a = hoverLineGeo.attributes.position;
+    a.setXYZ(0, xz[0], FLOOR_Y, xz[1]); a.setXYZ(1, xz[0], y, xz[1]);
+    a.needsUpdate = true;
+    hoverLine.computeLineDistances();
+    hoverLine.visible = true;
+    showReadout(p, "at cursor");
+    return true;
+  }
+  function clearPick() {
+    hoverDot.visible = false; hoverLine.visible = false;
+    showReadout(PEAK, "maximum");
+  }
+  let dragging = false;
+  controls.addEventListener("start", () => {
+    dragging = true;
+    if (controls.autoRotate) { controls.autoRotate = false; $("optSpin").checked = false; }
+  });
+  controls.addEventListener("end", () => { dragging = false; });
+  canvas.addEventListener("pointermove", e => {
+    if (dragging && e.pointerType !== "mouse") return;
+    if (e.buttons && e.pointerType === "mouse") return;
+    if (!pick(e.clientX, e.clientY)) clearPick();
+  });
+  canvas.addEventListener("pointerdown", e => {
+    if (e.pointerType !== "mouse") pick(e.clientX, e.clientY);
+  });
+  canvas.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") clearPick(); });
+
+  // --- Controls ---
+  const scaleIn = $("scale"), stepIn = $("step");
+  function onScale() {
+    const s = parseFloat(scaleIn.value);
+    uniforms.scale.value = s;
+    $("scaleOut").textContent = s.toFixed(2) + "×";
+    rebuildScaled(s);
+    clearPick();
+  }
+  function onStep() {
+    const st = STEPS[parseInt(stepIn.value, 10)];
+    uniforms.contourStep.value = st;
+    $("stepOut").textContent = (st < 0.1 ? st.toFixed(3) : st.toFixed(2)) + " bit";
+  }
+  scaleIn.addEventListener("input", onScale);
+  stepIn.addEventListener("input", onStep);
+  $("optContours").addEventListener("change", e => { uniforms.showContours.value = e.target.checked ? 1 : 0; });
+  $("optGrid").addEventListener("change", e => { uniforms.showGrid.value = e.target.checked ? 1 : 0; });
+  $("optFloor").addEventListener("change", e => { floor.visible = e.target.checked; });
+  $("optEdges").addEventListener("change", e => { scaled.userData.edges.visible = e.target.checked; });
+  $("optSpin").addEventListener("change", e => { controls.autoRotate = e.target.checked; });
+  if (!reduceMotion) { $("optSpin").checked = true; controls.autoRotate = true; }
+
+  onStep();
+  rebuildScaled(1);
+
+  // --- Resize & render loop ---
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    // keep roughly the same horizontal field of view on tall, narrow screens
+    camera.fov = Math.max(34, 2 * Math.atan(0.36 / (w / h)) * 180 / Math.PI);
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  function frame(now) {
+    if (tween) {
+      const t = Math.min((now - tween.t0) / tween.dur, 1);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      camera.position.lerpVectors(tween.from, tween.to, e);
+      controls.target.lerpVectors(tween.fromT, tween.toT, e);
+      if (t >= 1) tween = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    projectLabels();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // three.js only logs shader errors; surface them on the page too
+  renderer.compile(scene, camera);
+  const bad = renderer.info.programs && renderer.info.programs.find(pr => pr.diagnostics && !pr.diagnostics.runnable);
+  if (bad) throw new Error("the surface shader did not compile on this GPU. " + (bad.diagnostics.fragmentShader.log || bad.diagnostics.vertexShader.log || "").trim());
+  }
+})();
+</script>
