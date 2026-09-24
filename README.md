@@ -27,6 +27,17 @@ How it improves on the Mathematica version:
 | 50 × 50 mesh lines in u and v, which have no meaning for the distribution | Entropy contours and p_i grid lines, both of which you can read |
 | Static image | Interactive, with live readout and adjustable height scale |
 
+## Printable STL (`stl/`)
+
+`stl/entropy_surface.stl` is generated directly from the formula by `stl/make_stl.py` (standard-library Python):
+
+- units are millimetres: 100 mm triangle edge, 112 mm tall, 1.2 mm wall; rescale freely in the slicer;
+- the top sheet is the exact surface on a triangular barycentric grid, refined toward the edges, with 0·log 0 = 0 on the boundary;
+- the bottom sheet is offset inward along the exact normal; the normal is frozen in a thin band at the rim, where the profile s·log(1/s) curves too sharply for an exact offset, and the thickness tapers to zero at the three tips;
+- the mesh is closed and manifold (Euler characteristic 2, outward normals); `python3 stl/check_stl.py stl/entropy_surface.stl` verifies this.
+
+Options: `python3 stl/make_stl.py out.stl --edge 150 --wall 1.6 --n 300`.
+
 ## Mathematica version (`3d-entropy.nb`)
 
-The original notebook maps the simplex x + y + z = 1 onto the (u, v) plane and uses `ParametricPlot3D`. `entropy_function.stl` is a mesh exported from it.
+The original notebook maps the simplex x + y + z = 1 onto the (u, v) plane and uses `ParametricPlot3D`. `entropy_function.stl` is the mesh exported from it, kept for reference. Its two slanted edges come from `RegionFunction` clipping, where Mathematica interpolates boundary heights linearly instead of evaluating H; because H has infinite slope at the edges, those heights come out low (by up to 0.13 bits in the saved plot). The third edge, v = 0, is sampled directly (0·Log2[0] is `Indeterminate`, so Mathematica bisects toward it) and is exact.
