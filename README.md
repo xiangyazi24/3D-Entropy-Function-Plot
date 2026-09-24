@@ -8,8 +8,8 @@ plotted as a surface over the probability simplex.
 
 ## Interactive web version (`index.html`)
 
-A self-contained page built with [three.js](https://threejs.org/) (loaded from the jsDelivr CDN).
-Open `index.html` in any modern browser, or enable GitHub Pages for this repo to host it.
+A single-page app built with [three.js](https://threejs.org/) r147. three.js is vendored in `vendor/` (MIT, see `vendor/three-LICENSE`), so the page needs no CDN.
+Open `index.html` in any modern browser with WebGL, or serve the repo with GitHub Pages.
 
 - Drag to orbit, scroll or pinch to zoom. Hover or tap the surface to see the distribution and its entropy in bits and nats.
 - Height is H in bits. The maximum, log2 3 ≈ 1.585 bits, is at (1/3, 1/3, 1/3).
